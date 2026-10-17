@@ -4,69 +4,9 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve } from 'node:path';
 
-import { GOODS_VALUES, HOUSING_TYPES, type Goods, type Offer } from './types/offer.type.js';
-import type { City } from './types/city.type.js';
+import { GOODS_VALUES, type Goods, type Offer } from './types/offer.type.js';
 import { OFFERS_TSV_HEADER, offerToTsv } from './tsv-file-reader.js';
 import { randomBoolean, randomFloat, randomInteger, randomItem } from './random.js';
-
-const CITIES: City[] = [
-  'Paris',
-  'Cologne',
-  'Brussels',
-  'Amsterdam',
-  'Hamburg',
-  'Dusseldorf',
-];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isOfferTemplate(value: unknown): value is Offer {
-  if (!isRecord(value) || !isRecord(value.author) || !isRecord(value.location)) {
-    return false;
-  }
-
-  const author = value.author;
-  const location = value.location;
-
-  return typeof value.name === 'string'
-    && typeof value.description === 'string'
-    && typeof value.publicationDate === 'string'
-    && !Number.isNaN(Date.parse(value.publicationDate))
-    && CITIES.includes(value.city as City)
-    && typeof value.previewImage === 'string'
-    && Array.isArray(value.photos)
-    && value.photos.length === 6
-    && value.photos.every((photo) => typeof photo === 'string')
-    && typeof value.isPremium === 'boolean'
-    && typeof value.isFavorite === 'boolean'
-    && typeof value.rating === 'number'
-    && value.rating >= 1
-    && value.rating <= 5
-    && HOUSING_TYPES.includes(value.housingType as Offer['housingType'])
-    && typeof value.bedrooms === 'number'
-    && value.bedrooms >= 1
-    && value.bedrooms <= 8
-    && typeof value.maxAdults === 'number'
-    && value.maxAdults >= 1
-    && value.maxAdults <= 10
-    && typeof value.price === 'number'
-    && value.price >= 100
-    && value.price <= 100000
-    && Array.isArray(value.goods)
-    && value.goods.every((good) => GOODS_VALUES.includes(good as Goods))
-    && typeof author.name === 'string'
-    && typeof author.email === 'string'
-    && typeof author.avatarUrl === 'string'
-    && (author.type === 'pro' || author.type === 'regular')
-    && typeof value.commentsCount === 'number'
-    && value.commentsCount >= 0
-    && typeof location.latitude === 'number'
-    && Number.isFinite(location.latitude)
-    && typeof location.longitude === 'number'
-    && Number.isFinite(location.longitude);
-}
 
 function randomGoods(): Goods[] {
   const selected = new Set<Goods>();
@@ -107,7 +47,10 @@ async function fetchTemplates(url: string): Promise<Offer[]> {
     responseData = response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const status = error.response ? ` (HTTP ${error.response.status})` : '';
+      const status = error.response
+        ? ` (HTTP ${error.response.status})`
+        : '';
+
       throw new Error(
         `Не удалось получить шаблоны с ${url}${status}: ${error.message}`,
       );
@@ -122,13 +65,7 @@ async function fetchTemplates(url: string): Promise<Offer[]> {
     );
   }
 
-  if (!responseData.every(isOfferTemplate)) {
-    throw new Error(
-      'Ответ сервера содержит предложение с некорректными данными.',
-    );
-  }
-
-  return responseData;
+  return responseData as Offer[];
 }
 
 async function* createTsvRows(
